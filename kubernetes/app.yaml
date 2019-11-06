@@ -3,14 +3,14 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: audit-policy
-  namespace: default
+  namespace: audit-policy
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
   name: configmap-read-clusterrole
-  namespace: default
+  namespace: audit-policy
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
@@ -21,7 +21,7 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
 metadata:
   name: configmap-read-role
-  namespace: default
+  namespace: audit-policy
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
@@ -32,7 +32,7 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
 metadata:
   name: configmap-read-role-binding
-  namespace: default
+  namespace: audit-policy
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -40,7 +40,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: audit-policy
-    namespace: default
+    namespace: audit-policy
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -54,14 +54,14 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: audit-policy
-    namespace: default
+    namespace: audit-policy
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: audit-policy
-  namespace: default
+  namespace: audit-policy
 spec:
   replicas: 1
   selector:
@@ -102,10 +102,10 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: audit-policy-config
-  namespace: default
+  namespace: audit-policy
 data:
   AP_POLICY_PATH: "/etc/kubernetes/audit.yaml"
-  AP_NAMESPACE: "default"
+  AP_NAMESPACE: "audit-policy"
   AP_CONFIGMAP_NAME: "audit-policy"
 
 ---
@@ -113,7 +113,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: audit-policy
-  namespace: default
+  namespace: audit-policy
 data:
   policy.yaml: |
     apiVersion: audit.k8s.io/v1
