@@ -1,0 +1,165 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: audit-policy
+  namespace: default
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: configmap-read-clusterrole
+  namespace: default
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["list", "get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: configmap-read-role
+  namespace: default
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["list", "get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: configmap-read-role-binding
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: configmap-read-role
+subjects:
+  - kind: ServiceAccount
+    name: audit-policy
+    namespace: default
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: configmap-read-clusterrole-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: configmap-read-clusterrole
+subjects:
+  - kind: ServiceAccount
+    name: audit-policy
+    namespace: default
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit-policy
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: audit-policy
+  template:
+    metadata:
+      labels:
+        app: audit-policy
+    spec:
+      serviceAccountName: audit-policy
+      containers:
+      - image: audit-policy:latest
+        imagePullPolicy: IfNotPresent
+        command: [ "python", "./app.py" ]
+        name: audit-policy
+        envFrom:
+        - configMapRef:
+            name: audit-policy-config
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "25m"
+          limits:
+            memory: "128Mi"
+            cpu: "75m"
+        volumeMounts:
+        - mountPath: /etc/kubernetes/
+          name: output
+      volumes:
+      - hostPath:
+          path: /srv/kubernetes/
+          type: "DirectoryOrCreate"
+        name: output
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: audit-policy-config
+  namespace: default
+data:
+  AP_POLICY_PATH: "/etc/kubernetes/audit.yaml"
+  AP_NAMESPACE: "default"
+  AP_CONFIGMAP_NAME: "audit-policy"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: audit-policy
+  namespace: default
+data:
+  policy.yaml: |
+    apiVersion: audit.k8s.io/v1
+    kind: Policy
+    omitStages:
+      - "RequestReceived"
+    rules:
+      - level: RequestResponse
+        resources:
+        - group: ""
+          resources: ["pods"]
+      - level: Metadata
+        resources:
+        - group: ""
+          resources: ["pods/log", "pods/status"]
+      - level: None
+        resources:
+        - group: ""
+          resources: ["configmaps"]
+          resourceNames: ["controller-leader"]
+      - level: None
+        users: ["system:kube-proxy"]
+        verbs: ["watch"]
+        resources:
+        - group: ""
+          resources: ["endpoints", "services"]
+      - level: None
+        userGroups: ["system:authenticated"]
+        nonResourceURLs:
+        - "/api*"
+        - "/version"
+      - level: Request
+        resources:
+        - group: ""
+          resources: ["configmaps"]
+        namespaces: ["kube-system"]
+      - level: Metadata
+        resources:
+        - group: ""
+          resources: ["secrets", "configmaps"]
+      - level: Request
+        resources:
+        - group: ""
+        - group: "extensions"
+      - level: Metadata
+        omitStages:
+          - "RequestReceived"
+
+---
