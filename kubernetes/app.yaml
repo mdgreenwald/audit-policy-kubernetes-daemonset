@@ -74,7 +74,7 @@ spec:
     spec:
       serviceAccountName: audit-policy
       containers:
-      - image: audit-policy:latest
+      - image: docker.pkg.github.com/mdgreenwald/audit-policy-kubernetes-daemonset/audit-policy:v0.0.1
         imagePullPolicy: IfNotPresent
         command: [ "python", "./app.py" ]
         name: audit-policy
